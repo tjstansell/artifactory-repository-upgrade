@@ -112,8 +112,7 @@ directory, it's not going to be able to handle that case.
     ```
 
    You'll see a lot of things refreshing ... probably new settings that it
-   didn't store before.  For us, it included settings like `xray_index`
-   that terraform didn't even track before.
+   didn't store before.  For us, it included settings like `xray_index`.
 
 9. Now you can go through the tedious task of running a `plan` and updating
    the configs to make sure they are it only updates what you expect.
@@ -121,8 +120,8 @@ directory, it's not going to be able to handle that case.
    We found the following new settings cause it to want to replace the
    entire repository:
 
-   * `external_dependencies_patterns` on some reposotories (I don't
-     understand why this wants to do a full replacement)
+   * `external_dependencies_patterns` on some repositories (I don't
+     understand why this wants to do a full replacement when this changes)
 
    The following are some of the other settings we had to manually add
    to our repository resource configs to keep them from getting updated.
@@ -133,7 +132,7 @@ directory, it's not going to be able to handle that case.
    * `repo_layout_ref`
    * `retrieval_cache_period_seconds`
    * `tag_retention`
-   * `vcs_git_provider` (e.g. "GITHUB" -> "ARTIFACTORY")
+   * `vcs_git_provider` (e.g. `"GITHUB" -> "ARTIFACTORY"`)
    * `xray_index`
 
 10. Once you're done and your plan is clean (or only includes changes
