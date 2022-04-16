@@ -36,11 +36,14 @@ directory, it's not going to be able to handle that case.
 
 1. Make a copy of your state file locally.
 
+    ```sh
     $ aws s3 cp s3://my-state-bucket/my-project/terraform.tfstate .
+    ```
 
 2. Remove your s3 backend config so terraform can look at your local state
    file instead.
 
+    ```sh
     $ cat backend.tf
     terraform {
       backend "s3" {
@@ -51,6 +54,7 @@ directory, it's not going to be able to handle that case.
       }
     }
     $ mv backend.tf backend.tf-
+    ```
 
 3. Update your provider version to minimum required for your repository
    types:
@@ -73,31 +77,39 @@ directory, it's not going to be able to handle that case.
    `*.new` files locally with the updated versions so you can diff them
    and verify.
 
+    ```sh
     $ cp ~/github/artifactory-repository-upgrade/convert-repo .
     $ ./convert-repo --state-file terraform.tfstate
     Converting terraform.tfstate...
     Converting repos1.tf...
     Converting repos2.tf...
     ...
+    ```
 
 6. Now compare the old and new files to see if things look right.  Maybe
    verify there are no references to the old types:
 
+    ```sh
     $ for i in *.tf; do echo == $i ==; diff $i $i.new; done | less
     $ egrep 'artifactory_(local|remote|virtual)_repository' *.new
+    ```
 
 7. If things look good, you can take those `.new` files and just move
    them whereever you want or start over and let the tool replace the
    original files.
 
+    ```sh
     $ rm *.new
     $ ./convert-repo --state-file terraform.tfstate --replace
+    ```
 
 8. Now the majority of the update should be done.  But the new resource
    types include different settings than the generic ones.  Refresh your
    local, temporary state file to get it in a good state:
 
+    ```sh
     $ terraform apply -refresh-only
+    ```
 
    You'll see a lot of things refreshing ... probably new settings that it
    didn't store before.  For us, it included settings like `xray_index`
