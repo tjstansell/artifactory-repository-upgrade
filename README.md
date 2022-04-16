@@ -3,9 +3,9 @@
 This is a simple script used to help with the migration of the old,
 depreated repository types:
 
-    - `artifactory_local_repository`
-    - `artifactory_remote_repository`
-    - `artifactory_virtual_repository`
+  - `artifactory_local_repository`
+  - `artifactory_remote_repository`
+  - `artifactory_virtual_repository`
 
 to the type-specific replacements.  There's no great way to migrate a
 repository from one type to another.  Therefore, we have to do surgery on
@@ -63,9 +63,11 @@ directory, it's not going to be able to handle that case.
    store (just the safe backup that's local) and has the correct provider
    version:
 
+    ```sh
     $ rm -rf .terraform
     $ terraform init
     $ terraform plan        # <== make sure this is clean!
+    ```
 
 5. Do a test conversion of all of your data first.  This will generate new
    `*.new` files locally with the updated versions so you can diff them
