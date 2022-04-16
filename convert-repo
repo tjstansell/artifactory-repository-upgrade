@@ -1,0 +1,146 @@
+#!/usr/bin/env python3
+
+import argparse
+import glob
+import json
+import re
+import logging
+
+logging.basicConfig()
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.WARNING)
+
+deprecated = [
+    "artifactory_local_repository",
+    "artifactory_remote_repository",
+    "artifactory_virtual_repository",
+]
+rename = {}
+
+
+def convert_state(file, replace):
+    print(f"Converting {file}...")
+    with open(file) as f:
+        state = json.load(f)
+    for r in state["resources"]:
+        if r["type"] in deprecated:
+            pkgtype = r["instances"][0]["attributes"]["package_type"]
+            oldtype = r["type"]
+            if oldtype == "artifactory_local_repository" and pkgtype == "docker":
+                v = r["instances"][0]["attributes"]["docker_api_version"].lower()
+                pkgtype = f"docker_{v}"
+            newtype = r["type"].replace("repository", f"{pkgtype}_repository")
+            for i in r["instances"]:
+                attrs = i["attributes"]
+                name = r["name"]
+                module = r.get("module", None)
+
+                old = ".".join(filter(None, [module, oldtype, name]))
+                new = ".".join(filter(None, [module, newtype, name]))
+                rename[old] = new
+                del attrs["package_type"]
+                logger.info(f"found repository: {old} => {new}")
+            r["type"] = newtype
+
+    for r in state["resources"]:
+        for i in r["instances"]:
+            if "dependencies" in i:
+                i["dependencies"] = [rename.get(d, d) for d in i["dependencies"]]
+
+    if not replace:
+        file = f"{file}.new"
+
+    with open(file, mode="w") as f:
+        f.write(json.dumps(state, indent=2) + "\n")
+        logger.info(f"wrote {file}")
+
+
+def convert_hcl(file, replace):
+    print(f"Converting {file}...")
+
+    result = []
+    lines = []
+    with open(file) as f:
+        lines = f.readlines()
+    start = "".join(lines)
+    lines.reverse()
+    count = len(lines)
+
+    default_api_version = "v2"
+    api_version = default_api_version
+    pkgtype = None
+
+    for line in lines:
+        count -= 1
+        parts = line.split()
+        if len(parts) > 0:
+            if parts[0] == "package_type":
+                pkgtype = parts[-1].replace('"', "")
+                continue
+            elif parts[0] == "docker_api_version":
+                api_version = parts[-1].replace('"', "").lower()
+            elif m := re.search(
+                r"^resource\s+\"artifactory_(local|remote|virtual)_repository\".*\"\s+{",
+                line,
+            ):
+                if m[1] == "local" and pkgtype == "docker":
+                    pkgtype = f"docker_{api_version}"
+                line = line.replace("repository", f"{pkgtype}_repository")
+                # reset this back to default
+                api_version = default_api_version
+
+            for m in re.findall(
+                r"[\w.-]*artifactory_(?:local|remote|virtual)_repository.[\w-]*", line
+            ):
+                if m in rename:
+                    line = line.replace(m, rename[m])
+                    logger.info(f"hcl: found repo: {m} => {rename[m]}")
+                else:
+                    logger.warn(f"{file} line {count}: could not find rename for {m}")
+        result.append(line)
+    result.reverse()
+
+    end = "".join(result)
+    if start == end:
+        logger.info(f"no changes for {file}")
+        return
+
+    if not replace:
+        file = f"{file}.new"
+    with open(file, mode="w") as f:
+        f.write("".join(result))
+        logger.info(f"wrote {file}")
+
+
+def main():
+    args = parse_args()
+
+    convert_state(args.state_file, args.replace)
+    files = glob.glob("*.tf")
+    for f in files:
+        convert_hcl(f, args.replace)
+
+
+def parse_args():
+    parser = argparse.ArgumentParser(
+        description="artifactory-terraform-provider repository updater"
+    )
+    parser.add_argument(
+        "--state-file",
+        help="The state file to convert.",
+    )
+    parser.add_argument(
+        "-r",
+        "--replace",
+        action="store_true",
+        help="replace files instead of creating .new versions",
+    )
+    parser.add_argument("-v", "--verbose", action="store_true", help="verbose logs")
+    args = parser.parse_args()
+    if args.verbose:
+        logger.setLevel(logging.INFO)
+    return args
+
+
+if __name__ == "__main__":
+    main()
