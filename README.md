@@ -1,7 +1,7 @@
 # terraform-provider-artifactory repository upgrader
 
 This is a simple script used to help with the migration of the old,
-depreated repository types:
+deprecated repository types:
 
   - `artifactory_local_repository`
   - `artifactory_remote_repository`
